@@ -85,82 +85,71 @@
         </div>
     </div>
 
-    <script>
-        let rawData = [];
-        let currentPool = [];
-        let currentIndex = 0;
-        let score = 0;
-        let currentItem = null;
-        const audio = new Audio();
-        window.addEventListener('DOMContentLoaded', () => {
-                const fileName = 'verbs.json'; 
-                fetch(fileName)
-                        .then(response => {
-                                if (!response.ok) throw new Error('Файл не найден');
-                                return response.json();
-                        })
-                        .then(data => {
-                                rawData = data;
-                                document.getElementById('upload-screen').classList.add('hidden');
-                                document.getElementById('quiz-screen').classList.remove('hidden');
-                                initQuiz();
-                        })
-                        .catch(err => console.log("Ждем ручной выбор файла"));
-        });
-	function playHebrew(text) {
-	    if (!text) return;
-	    
-	    // Сбрасываем всё, что играло до этого
-	    window.speechSynthesis.cancel();
-	
-	    const utterance = new SpeechSynthesisUtterance(text);
-	    utterance.lang = 'he-IL';
-	    utterance.rate = 1;
-	    
-	    // Важно: на некоторых Android нужно явно указать голос
-	    const voices = window.speechSynthesis.getVoices();
-	    const hebrewVoice = voices.find(v => v.lang.startsWith('he'));
-	    if (hebrewVoice) utterance.voice = hebrewVoice;
-	
-	    window.speechSynthesis.speak(utterance);
-	}
-        document.getElementById('file-input').addEventListener('change', function(e) {
-            const reader = new FileReader();
-            reader.onload = function() {
-                try {
-                    let content = reader.result;
-                    content = content.replace(/const\s+RAW_DATA\s*=\s*/, '').replace(/;$/, '').trim();
-                    rawData = JSON.parse(content);
-                    initQuiz();
-                } catch (err) {
-                    alert("Ошибка: Неверный формат файла базы!");
-                }
-            };
-            reader.readAsText(e.target.files[0]);
-        });
+<script>
+    let rawData = [];
+    let currentPool = [];
+    let currentIndex = 0;
+    let score = 0;
+    let currentItem = null;
 
-	function initQuiz() {
-	    document.getElementById('upload-screen').classList.add('hidden');
-	    document.getElementById('result-screen').classList.add('hidden');
-	    document.getElementById('quiz-screen').classList.remove('hidden');
-	    
-	    // Создаем копию базы
-	    let shufflePool = [...rawData];
-	    
-	    // Алгоритм Фишера — Йейтса (идеальное перемешивание)
-	    for (let i = shufflePool.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[shufflePool[i], shufflePool[j]] = [shufflePool[j], shufflePool[i]];
-	    }
-	    
-	    // Берем первые 50 (теперь они точно случайные)
-	    currentPool = shufflePool.slice(0, Math.min(shufflePool.length, 50));
-	    
-	    currentIndex = 0;
-	    score = 0;
-	    document.getElementById('score').textContent = `Верно: 0`;
-	    renderQuestion();
-	}
+    // 1. Автозагрузка при старте (если файл рядом)
+    window.addEventListener('DOMContentLoaded', () => {
+        const fileName = 'verbs.json';
+        fetch(fileName)
+            .then(response => {
+                if (!response.ok) throw new Error('Файл не найден');
+                return response.json();
+            })
+            .then(data => {
+                rawData = data;
+                initQuiz();
+            })
+            .catch(err => console.log("Ожидание ручного выбора файла..."));
+    });
+
+    function playHebrew(text) {
+        if (!text) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'he-IL';
+        const voices = window.speechSynthesis.getVoices();
+        const hebrewVoice = voices.find(v => v.lang.startsWith('he'));
+        if (hebrewVoice) utterance.voice = hebrewVoice;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    document.getElementById('file-input').addEventListener('change', function(e) {
+        const reader = new FileReader();
+        reader.onload = function() {
+            try {
+                let content = reader.result;
+                content = content.replace(/const\s+RAW_DATA\s*=\s*/, '').replace(/;$/, '').trim();
+                rawData = JSON.parse(content);
+                initQuiz();
+            } catch (err) {
+                alert("Ошибка: Неверный формат файла базы!");
+            }
+        };
+        reader.readAsText(e.target.files[0]);
+    });
+
+    function initQuiz() {
+        document.getElementById('upload-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.add('hidden');
+        document.getElementById('quiz-screen').classList.remove('hidden');
+        
+        let shufflePool = [...rawData];
+        for (let i = shufflePool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shufflePool[i], shufflePool[j]] = [shufflePool[j], shufflePool[i]];
+        }
+        
+        currentPool = shufflePool.slice(0, Math.min(shufflePool.length, 50));
+        currentIndex = 0;
+        score = 0;
+        document.getElementById('score').textContent = `Верно: 0`;
+        renderQuestion();
+    }
 
         function renderQuestion() {
             const item = currentPool[currentIndex];
