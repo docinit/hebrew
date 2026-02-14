@@ -1,0 +1,6 @@
+# IgnoreIT
+OLD/
+python/
+local/
+.*
+!.gitignore

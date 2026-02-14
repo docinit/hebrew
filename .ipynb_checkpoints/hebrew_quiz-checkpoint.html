@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тренажер Иврита (Pro)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@400;700&display=swap');
+        .hebrew { font-family: 'Noto Sans Hebrew', sans-serif; direction: rtl; }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div id="app" class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 border border-gray-200">
+        <div id="upload-screen" class="text-center py-10">
+            <div class="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Тренажер Иврита</h1>
+            <p class="text-gray-500 mb-8">Выберите файл с базой слов</p>
+            <input type="file" id="file-input" class="hidden" accept=".json,.txt,.js,.html">
+            <button onclick="document.getElementById('file-input').click()" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg">
+                Загрузить базу
+            </button>
+        </div>
+
+        <div id="quiz-screen" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <span id="progress" class="text-sm font-semibold text-gray-400">0 / 0</span>
+                <div id="audio-loader" class="invisible flex items-center gap-2">
+                    <div class="loading-spinner"></div>
+                    <span class="text-xs text-blue-500 font-medium">Звук...</span>
+                </div>
+                <span id="score" class="text-sm font-bold text-green-500">Верно: 0</span>
+            </div>
+
+            <div class="text-center mb-8">
+                <div id="question" class="text-4xl font-black mb-6 min-h-[80px] flex items-center justify-center leading-tight"></div>
+                <button id="repeat-audio" class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto hover:bg-gray-200 transition-all text-gray-600">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.983 5.983 0 01-1.414 4.243 1 1 0 11-1.415-1.415A3.983 3.983 0 0013 10a3.983 3.983 0 00-1.414-2.828a1 1 0 010-1.415z"></path></svg>
+                </button>
+            </div>
+
+            <div id="options" class="grid gap-3"></div>
+
+            <button id="next-btn" class="hidden w-full mt-8 bg-gray-900 text-white py-4 rounded-xl font-bold hover:bg-black transition-all">
+                Дальше
+            </button>
+        </div>
+
+        <div id="result-screen" class="hidden text-center py-6">
+            <div id="result-icon" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"></div>
+            <h2 class="text-3xl font-black text-gray-800 mb-2">Готово!</h2>
+            <p id="result-text" class="text-gray-500 mb-8 font-medium"></p>
+            
+            <div class="bg-gray-50 rounded-2xl p-6 mb-8 grid grid-cols-2 gap-4">
+                <div class="text-center">
+                    <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Верно</p>
+                    <p id="final-correct" class="text-2xl font-black text-green-500"></p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-gray-400 uppercase font-bold tracking-wider">Точность</p>
+                    <p id="final-percent" class="text-2xl font-black text-blue-500"></p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <button onclick="initQuiz()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg">
+                    Повторить еще раз
+                </button>
+                <button onclick="location.reload()" class="w-full bg-gray-100 text-gray-500 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all">
+                    Выбрать другой файл
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = [];
+        let currentPool = [];
+        let currentIndex = 0;
+        let score = 0;
+        let currentItem = null;
+        const audio = new Audio();
+
+        function playHebrew(text) {
+            if (!text) return;
+            const loader = document.getElementById('audio-loader');
+            loader.classList.remove('invisible');
+            const cleanText = text.split(/[\\(?]/)[0].trim();
+            const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=iw&client=tw-ob`;
+            audio.src = url;
+            audio.play().finally(() => { loader.classList.add('invisible'); });
+        }
+/*        
+	// Обновленная функция озвучки
+	function playHebrew(text) {
+	    if (!text) return;
+	    const loader = document.getElementById('audio-loader');
+	    loader.classList.remove('invisible');
+	    
+	    // Google TTS отлично понимает огласовки (никудот)
+	    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=iw&client=tw-ob`;
+	    audio.src = url;
+	    audio.play().finally(() => { loader.classList.add('invisible'); });
+	}
+
+	// Внутри функции renderQuestion или там, где вызывается звук, 
+	// передавай именно поле tts, если оно есть:
+	btn.onclick = () => {
+	    if (!document.getElementById('next-btn').classList.contains('hidden')) return;
+	    
+	    // Пробуем озвучить tts, если его нет — обычный he
+	    const audioText = currentItem.tts || currentItem.he;
+	    playHebrew(audioText);
+
+	    // ... дальше логика проверки ответа ...
+	};
+*/
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function() {
+                try {
+                    let content = reader.result;
+                    content = content.replace(/const\s+RAW_DATA\s*=\s*/, '').replace(/;$/, '').trim();
+                    rawData = JSON.parse(content);
+                    initQuiz();
+                } catch (err) {
+                    alert("Ошибка: Неверный формат файла базы!");
+                }
+            };
+            reader.readAsText(e.target.files[0]);
+        });
+
+	function initQuiz() {
+	    document.getElementById('upload-screen').classList.add('hidden');
+	    document.getElementById('result-screen').classList.add('hidden');
+	    document.getElementById('quiz-screen').classList.remove('hidden');
+	    
+	    // Создаем копию базы
+	    let shufflePool = [...rawData];
+	    
+	    // Алгоритм Фишера — Йейтса (идеальное перемешивание)
+	    for (let i = shufflePool.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[shufflePool[i], shufflePool[j]] = [shufflePool[j], shufflePool[i]];
+	    }
+	    
+	    // Берем первые 50 (теперь они точно случайные)
+	    currentPool = shufflePool.slice(0, Math.min(shufflePool.length, 50));
+	    
+	    currentIndex = 0;
+	    score = 0;
+	    document.getElementById('score').textContent = `Верно: 0`;
+	    renderQuestion();
+	}
+
+        function renderQuestion() {
+            const item = currentPool[currentIndex];
+            currentItem = item;
+            const isRuToHe = Math.random() > 0.5;
+            
+            document.getElementById('progress').textContent = `${currentIndex + 1} / ${currentPool.length}`;
+            document.getElementById('next-btn').classList.add('hidden');
+            
+            const qBox = document.getElementById('question');
+            qBox.textContent = isRuToHe ? item.ru : item.he;
+            qBox.className = isRuToHe ? "text-2xl font-bold text-gray-700" : "text-5xl font-bold hebrew text-blue-900";
+
+            const correct = isRuToHe ? item.he : item.ru;
+            let options = rawData
+                .filter(x => x.ru !== item.ru)
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 3)
+                .map(x => isRuToHe ? x.he : x.ru);
+            
+            options.push(correct);
+            options.sort(() => Math.random() - 0.5);
+
+            const optContainer = document.getElementById('options');
+            optContainer.innerHTML = '';
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "w-full p-4 border-2 border-gray-100 rounded-xl text-left hover:border-blue-400 hover:bg-blue-50 transition-all font-medium";
+                if (/[א-ת]/.test(opt)) btn.classList.add('hebrew', 'text-2xl', 'text-right');
+                btn.textContent = opt;
+
+                btn.onclick = () => {
+                    if (!document.getElementById('next-btn').classList.contains('hidden')) return;
+                    playHebrew(item.he);
+
+                    if (opt === correct) {
+                        btn.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
+                        score++;
+                        document.getElementById('score').textContent = `Верно: ${score}`;
+                    } else {
+                        btn.classList.add('border-red-500', 'bg-red-50', 'text-red-700');
+                        Array.from(optContainer.children).forEach(b => {
+                            if (b.textContent === correct) b.classList.add('border-green-400', 'bg-green-50');
+                        });
+                    }
+                    document.getElementById('next-btn').classList.remove('hidden');
+                };
+                optContainer.appendChild(btn);
+            });
+        }
+
+        function showResults() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            
+            const percent = Math.round((score / currentPool.length) * 100);
+            document.getElementById('final-correct').textContent = `${score} / ${currentPool.length}`;
+            document.getElementById('final-percent').textContent = `${percent}%`;
+            
+            const iconBox = document.getElementById('result-icon');
+            const resultText = document.getElementById('result-text');
+            
+            if (percent >= 80) {
+                iconBox.className = "w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 bg-green-100 text-green-600";
+                iconBox.innerHTML = '<svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>';
+                resultText.textContent = "Отличный результат! כל הכבוד";
+            } else if (percent >= 50) {
+                iconBox.className = "w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 bg-blue-100 text-blue-600";
+                iconBox.innerHTML = '<svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                resultText.textContent = "Хорошо, но можно лучше. Попробуй еще раз!";
+            } else {
+                iconBox.className = "w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 bg-red-100 text-red-600";
+                iconBox.innerHTML = '<svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+                resultText.textContent = "Нужно еще потренироваться. Не сдавайся!";
+            }
+        }
+
+        document.getElementById('repeat-audio').onclick = () => playHebrew(currentItem.he);
+
+        document.getElementById('next-btn').onclick = () => {
+            currentIndex++;
+            if (currentIndex < currentPool.length) {
+                renderQuestion();
+            } else {
+                showResults();
+            }
+        };
+    </script>
+</body>
+</html>
