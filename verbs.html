@@ -93,7 +93,7 @@
         let currentItem = null;
         const audio = new Audio();
         window.addEventListener('DOMContentLoaded', () => {
-                const fileName = 'words.json'; 
+                const fileName = 'verbs.json'; 
                 fetch(fileName)
                         .then(response => {
                                 if (!response.ok) throw new Error('Файл не найден');
@@ -115,7 +115,7 @@
 	
 	    const utterance = new SpeechSynthesisUtterance(text);
 	    utterance.lang = 'he-IL';
-	    utterance.rate = 0.8;
+	    utterance.rate = 1;
 	    
 	    // Важно: на некоторых Android нужно явно указать голос
 	    const voices = window.speechSynthesis.getVoices();
@@ -124,31 +124,6 @@
 	
 	    window.speechSynthesis.speak(utterance);
 	}
-/*        
-	// функция озвучки если добавить колонку огласовок
-	function playHebrew(text) {
-	    if (!text) return;
-	    const loader = document.getElementById('audio-loader');
-	    loader.classList.remove('invisible');
-	    
-	    // Google TTS отлично понимает огласовки (никудот)
-	    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=iw&client=tw-ob`;
-	    audio.src = url;
-	    audio.play().finally(() => { loader.classList.add('invisible'); });
-	}
-
-	// Внутри функции renderQuestion или там, где вызывается звук, 
-	// передавай именно поле tts, если оно есть:
-	btn.onclick = () => {
-	    if (!document.getElementById('next-btn').classList.contains('hidden')) return;
-	    
-	    // Пробуем озвучить tts, если его нет — обычный he
-	    const audioText = currentItem.tts || currentItem.he;
-	    playHebrew(audioText);
-
-	    // ... дальше логика проверки ответа ...
-	};
-*/
         document.getElementById('file-input').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function() {
@@ -220,7 +195,7 @@
 
                 btn.onclick = () => {
                     if (!document.getElementById('next-btn').classList.contains('hidden')) return;
-                    playHebrew(item.he);
+                    playHebrew(item.tts);
 
                     if (opt === correct) {
                         btn.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
