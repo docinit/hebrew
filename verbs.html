@@ -21,7 +21,7 @@
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
     <div id="app" class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 border border-gray-200">
-        <!--  Начало -->
+        <!-- 1. Экран загрузки -->
         <div id="upload-screen" class="text-center py-10">
             <div class="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -29,7 +29,6 @@
                 </svg>
             </div>
             <h1 class="text-2xl font-bold text-gray-800 mb-2">Тренажер Иврита</h1>
-            <!-- Секция для verbs.json -->
             <div id="default-file-box" class="hidden mb-6 p-4 bg-blue-50 rounded-2xl border-2 border-blue-100">
                 <p class="text-sm font-medium text-blue-800 mb-3">Найдена база verbs.json</p>
                 <button onclick="loadDefaultFile()" class="w-full bg-blue-500 text-white py-2 rounded-lg font-bold hover:bg-blue-600 transition-all">
@@ -37,14 +36,37 @@
                 </button>
                 <p class="text-[10px] text-gray-400 mt-2 uppercase font-black">или</p>
             </div>
-            <p class="text-gray-500 mb-8">Загрузите свой файл с базой слов</p>
+            <p class="text-gray-500 mb-8 text-sm">Загрузите файл с базой слов</p>
             <input type="file" id="file-input" class="hidden" accept=".json,.txt,.js,.html">
             <button onclick="document.getElementById('file-input').click()" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg">
                 Загрузить базу
             </button>
         </div>
 
-        <!-- Тест -->
+        <!-- 2. Экран настроек -->
+        <div id="settings-screen" class="hidden">
+            <h2 class="text-xl font-bold text-gray-800 mb-6 text-center">Настройки тренировки</h2>
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Количество слов</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="setLimit(10)" class="limit-btn p-2 border-2 rounded-xl font-bold text-gray-600 hover:bg-blue-50 transition-all" data-value="10">10</button>
+                        <button onclick="setLimit(20)" class="limit-btn p-2 border-2 rounded-xl font-bold text-gray-600 hover:bg-blue-50 transition-all" data-value="20">20</button>
+                        <button onclick="setLimit(50)" class="limit-btn p-2 border-2 rounded-xl font-bold border-blue-500 bg-blue-50 text-blue-600" data-value="50">50</button>
+                        <button onclick="setLimit(0)" class="limit-btn p-2 border-2 rounded-xl font-bold text-gray-600 hover:bg-blue-50 transition-all" data-value="0">Все</button>
+                    </div>
+                </div>
+                <div id="groups-container">
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Группы слов</label>
+                    <div id="groups-list" class="grid grid-cols-2 gap-2"></div>
+                </div>
+                <button onclick="startQuiz()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
+                    Начать тренировку
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. Экран теста -->
         <div id="quiz-screen" class="hidden">
             <div class="flex justify-between items-center mb-6">
                 <span id="score" class="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Верно: 0</span>
@@ -63,7 +85,6 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
                     </svg>
-                    Повторить
                 </button>
                 <button id="next-btn" class="hidden flex-[2] bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
                     Дальше
@@ -71,7 +92,7 @@
             </div>
         </div>
 
-        <!-- Результат -->
+        <!-- 4. Экран результата -->
         <div id="result-screen" class="hidden text-center py-6">
             <div id="result-icon"></div>
             <h2 class="text-2xl font-bold text-gray-800 mb-2">Тест завершен!</h2>
@@ -97,13 +118,15 @@
 
     <script>
         let rawData = [];
+        let filteredData = [];
         let currentPool = [];
         let currentIndex = 0;
         let score = 0;
         let currentItem = null;
-        const QUIZ_LIMIT = 50;
+        let quizLimit = 50;
+        let selectedGroups = new Set();
 
-        // 1. Проверка наличия verbs.json при загрузке
+        // 1. Проверка наличия verbs.json
         window.addEventListener('DOMContentLoaded', () => {
             fetch('verbs.json', { method: 'HEAD' })
                 .then(response => {
@@ -111,40 +134,75 @@
                         document.getElementById('default-file-box').classList.remove('hidden');
                     }
                 })
-                .catch(() => console.log("Файл verbs.json не найден в корне."));
+                .catch(() => console.log("verbs.json не найден"));
         });
 
-        // Функция загрузки встроенного файла
         function loadDefaultFile() {
             fetch('verbs.json')
-                .then(response => response.json())
+                .then(res => res.json())
                 .then(data => {
                     rawData = data;
-                    initQuiz();
+                    showSettings();
                 })
                 .catch(err => alert("Ошибка при чтении verbs.json"));
         }
 
-        // Обработка ручной загрузки
         document.getElementById('file-input').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function() {
                 try {
                     let content = reader.result.trim();
-                    // Очистка если файл в формате JS переменной
-                    if (content.includes('=')) {
-                        content = content.split('=')[1].replace(/;$/, '').trim();
-                    }
+                    if (content.includes('=')) content = content.split('=')[1].replace(/;$/, '').trim();
                     rawData = JSON.parse(content);
-                    initQuiz();
-                } catch (err) {
-                    alert("Ошибка: Неверный формат файла!");
-                }
+                    showSettings();
+                } catch (err) { alert("Ошибка формата файла!"); }
             };
             reader.readAsText(e.target.files[0]);
         });
 
-        // Усиленное перемешивание (Fisher-Yates)
+        // Экран настроек
+        function showSettings() {
+            document.getElementById('upload-screen').classList.add('hidden');
+            document.getElementById('settings-screen').classList.remove('hidden');
+            
+            const groupsList = document.getElementById('groups-list');
+            groupsList.innerHTML = '';
+            const groups = [...new Set(rawData.map(item => item.group).filter(Boolean))].sort();
+            
+            if (groups.length > 0) {
+                groups.forEach(group => {
+                    const btn = document.createElement('button');
+                    btn.className = "group-btn p-2 border-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50 transition-all";
+                    btn.textContent = group;
+                    btn.onclick = () => toggleGroup(group, btn);
+                    groupsList.appendChild(btn);
+                });
+                document.getElementById('groups-container').classList.remove('hidden');
+            } else {
+                document.getElementById('groups-container').classList.add('hidden');
+            }
+        }
+
+        function setLimit(val) {
+            quizLimit = val;
+            document.querySelectorAll('.limit-btn').forEach(btn => {
+                btn.className = "limit-btn p-2 border-2 rounded-xl font-bold text-gray-600 hover:bg-blue-50 transition-all";
+                if (parseInt(btn.getAttribute('data-value')) === val) {
+                    btn.className = "limit-btn p-2 border-2 rounded-xl font-bold border-blue-500 bg-blue-50 text-blue-600";
+                }
+            });
+        }
+
+        function toggleGroup(group, btn) {
+            if (selectedGroups.has(group)) {
+                selectedGroups.delete(group);
+                btn.className = "group-btn p-2 border-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-50";
+            } else {
+                selectedGroups.add(group);
+                btn.className = "group-btn p-2 border-2 rounded-xl text-xs font-bold border-blue-500 bg-blue-50 text-blue-600";
+            }
+        }
+
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -152,17 +210,26 @@
             }
         }
 
-        function initQuiz() {
-            document.getElementById('upload-screen').classList.add('hidden');
-            document.getElementById('result-screen').classList.add('hidden');
-            document.getElementById('quiz-screen').classList.remove('hidden');
-            // Сначала копируем и перемешиваем ВСЮ базу
-            let fullShuffle = [...rawData];
-            shuffleArray(fullShuffle);
-            // Затем берем 50 слов
-            currentPool = fullShuffle.slice(0, Math.min(fullShuffle.length, QUIZ_LIMIT));
+        function startQuiz() {
+            filteredData = selectedGroups.size > 0 
+                ? rawData.filter(item => selectedGroups.has(item.group))
+                : [...rawData];
+
+            if (filteredData.length === 0) {
+                alert("Нет слов в выбранных группах!");
+                return;
+            }
+
+            let shuffled = [...filteredData];
+            shuffleArray(shuffled);
+            
+            const limit = quizLimit === 0 ? shuffled.length : quizLimit;
+            currentPool = shuffled.slice(0, Math.min(shuffled.length, limit));
+            
             currentIndex = 0;
             score = 0;
+            document.getElementById('settings-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
             document.getElementById('score').textContent = `Верно: 0`;
             renderQuestion();
         }
@@ -177,7 +244,7 @@
             qBox.textContent = isRuToHe ? item.ru : item.he;
             qBox.className = isRuToHe ? "text-2xl font-bold text-gray-700" : "text-5xl font-bold hebrew text-blue-900";
             const correct = isRuToHe ? item.he : item.ru;
-            // Варианты ответов из всей базы
+            
             let options = rawData
                 .filter(x => x.ru !== item.ru)
                 .sort(() => Math.random() - 0.5)
@@ -185,6 +252,7 @@
                 .map(x => isRuToHe ? x.he : x.ru);
             options.push(correct);
             shuffleArray(options);
+
             const optContainer = document.getElementById('options');
             optContainer.innerHTML = '';
             options.forEach(opt => {
@@ -238,11 +306,12 @@
             }
         }
 
-        // Функция возврата к началу
         function resetToUpload() {
             rawData = [];
+            selectedGroups.clear();
             document.getElementById('file-input').value = "";
             document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('settings-screen').classList.add('hidden');
             document.getElementById('upload-screen').classList.remove('hidden');
         }
 
