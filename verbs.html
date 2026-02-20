@@ -22,6 +22,7 @@
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
     <div id="app" class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 border border-gray-200">
+        <!--  Начало -->
         <div id="upload-screen" class="text-center py-10">
             <div class="bg-blue-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg class="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
@@ -33,7 +34,30 @@
                 Загрузить базу
             </button>
         </div>
+        <!-- Выбор параметров -->
+        <div id="settings-screen" class="hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Настройки тренировки</h2>
+            
+            <div class="mb-8">
+                <p class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Количество слов:</p>
+                <div id="count-options" class="grid grid-cols-4 gap-2">
+                    <button onclick="setLimit(10)" class="limit-btn py-2 rounded-xl border-2 border-gray-100 font-bold hover:bg-blue-50 transition-all" data-value="10">10</button>
+                    <button onclick="setLimit(20)" class="limit-btn py-2 rounded-xl border-2 border-gray-100 font-bold hover:bg-blue-50 transition-all" data-value="20">20</button>
+                    <button onclick="setLimit(50)" class="limit-btn py-2 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-600 font-bold" data-value="50">50</button>
+                    <button onclick="setLimit(100)" class="limit-btn py-2 rounded-xl border-2 border-gray-100 font-bold hover:bg-blue-50 transition-all" data-value="100">100</button>
+                </div>
+            </div>
 
+        <div id="filter-section" class="mb-8">
+            <p class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3"> </p> <!-- Фильтры:-->
+            <div id="dynamic-filters-container" class="space-y-4"></div>
+        </div>
+
+            <button onclick="initQuiz()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-blue-700 shadow-xl transition-all transform active:scale-95">
+                ПОЕХАЛИ!
+            </button>
+        </div>
+        <!-- Тест -->
         <div id="quiz-screen" class="hidden">
             <div class="flex justify-between items-center mb-6">
                 <span id="progress" class="text-sm font-semibold text-gray-400">0 / 0</span>
@@ -78,34 +102,92 @@
                 <button onclick="initQuiz()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg">
                     Повторить еще раз
                 </button>
-                <button onclick="location.reload()" class="w-full bg-gray-100 text-gray-500 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all">
-                    Выбрать другой файл
-                </button>
+                <button onclick="resetToUpload()" class="w-full bg-gray-100 text-gray-500 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all">
+    Выбрать другой файл
+</button>
             </div>
         </div>
     </div>
 
-<script>
-    let rawData = [];
-    let currentPool = [];
-    let currentIndex = 0;
-    let score = 0;
-    let currentItem = null;
+    <script>
+const filterConfig = []; // все фильтры в одной переменной
+        let activeFilters = {}; // хранение выбора пользователя
+        let rawData = [];
+        let filteredData = [];
+        let currentPool = [];
+        let currentIndex = 0;
+        let score = 0;
+        let currentItem = null;
+        let quizLimit = 50; 
+        const audio = new Audio();
 
-    // 1. Автозагрузка при старте (если файл рядом)
-    window.addEventListener('DOMContentLoaded', () => {
-        const fileName = 'verbs.json';
-        fetch(fileName)
-            .then(response => {
-                if (!response.ok) throw new Error('Файл не найден');
-                return response.json();
-            })
-            .then(data => {
-                rawData = data;
-                initQuiz();
-            })
-            .catch(err => console.log("Ожидание ручного выбора файла..."));
-    });
+        function generateFilters() {
+            const container = document.getElementById('dynamic-filters-container');
+            container.innerHTML = ''; 
+            activeFilters = {}; 
+            filterConfig.forEach(key => {
+                const wrapper = document.createElement('div');
+                const label = document.createElement('p');
+                label.className = "text-[10px] font-black text-gray-400 uppercase mb-1 ml-1";
+                label.textContent = key;
+                
+                const select = document.createElement('select');
+                select.id = `filter-${key}`;
+                select.className = "w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium focus:border-blue-400 outline-none transition-all mb-3";
+                
+                select.onchange = (e) => {
+                    activeFilters[key] = e.target.value;
+                    updateFilterOptions();
+                };
+                
+                wrapper.appendChild(label);
+                wrapper.appendChild(select);
+                container.appendChild(wrapper);
+            });
+            updateFilterOptions();
+        }
+
+        function updateFilterOptions() {
+            filterConfig.forEach(key => {
+                const select = document.getElementById(`filter-${key}`);
+                const currentVal = activeFilters[key] || 'all';
+                
+                let availableData = rawData.filter(item => {
+                    return filterConfig.every(fKey => {
+                        if (fKey === key || !activeFilters[fKey] || activeFilters[fKey] === 'all') return true;
+                        return item[fKey] === activeFilters[fKey];
+                    });
+                });
+
+                const uniqueValues = [...new Set(availableData.map(item => item[key]).filter(Boolean))].sort();
+                select.innerHTML = '';
+                
+                const defaultOpt = document.createElement('option');
+                defaultOpt.value = 'all';
+                defaultOpt.textContent = `Все [${key}]`; 
+                select.appendChild(defaultOpt);
+
+                uniqueValues.forEach(val => {
+                    const opt = document.createElement('option');
+                    opt.value = val;
+                    opt.textContent = val;
+                    if (val === currentVal) opt.selected = true;
+                    select.appendChild(opt);
+                });
+            });
+        }
+
+        function setLimit(num) {
+            quizLimit = num;
+            document.querySelectorAll('.limit-btn').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-600');
+                btn.classList.add('border-gray-100');
+                if(parseInt(btn.getAttribute('data-value')) === num) {
+                    btn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-600');
+                    btn.classList.remove('border-gray-100');
+                }
+            });
+        }
 
     function playHebrew(text) {
         if (!text) return;
@@ -117,39 +199,67 @@
         if (hebrewVoice) utterance.voice = hebrewVoice;
         window.speechSynthesis.speak(utterance);
     }
+        
+        
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function() {
+                try {
+                    let content = reader.result.trim();
+                    if (content.includes('=')) {
+                        content = content.split('=')[1].replace(/;$/, '').trim();
+                    }
+                    rawData = JSON.parse(content);
+                    generateFilters();
+                    
+                    document.getElementById('upload-screen').classList.add('hidden');
+                    document.getElementById('settings-screen').classList.remove('hidden');
+                } catch (err) {
+                    alert("Ошибка в формате файла!");
+                }
+            };
+            reader.readAsText(e.target.files[0]);
+        });
 
-    document.getElementById('file-input').addEventListener('change', function(e) {
-        const reader = new FileReader();
-        reader.onload = function() {
-            try {
-                let content = reader.result;
-                content = content.replace(/const\s+RAW_DATA\s*=\s*/, '').replace(/;$/, '').trim();
-                rawData = JSON.parse(content);
-                initQuiz();
-            } catch (err) {
-                alert("Ошибка: Неверный формат файла базы!");
+        function shuffleArray(array) {
+          for (let i = array.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [array[i], array[j]] = [array[j], array[i]];
+          }
+          return array;
+      }
+        function initQuiz() {            
+            filteredData = rawData.filter(item => {
+                return filterConfig.every(key => {
+                    if (!activeFilters[key] || activeFilters[key] === 'all') return true;
+                    return item[key] === activeFilters[key];
+                });
+            });
+
+            if (filteredData.length === 0) {
+                alert("Слов не найдено. Попробуйте изменить фильтры.");
+                return;
             }
-        };
-        reader.readAsText(e.target.files[0]);
-    });
 
-    function initQuiz() {
-        document.getElementById('upload-screen').classList.add('hidden');
-        document.getElementById('result-screen').classList.add('hidden');
-        document.getElementById('quiz-screen').classList.remove('hidden');
-        
-        let shufflePool = [...rawData];
-        for (let i = shufflePool.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shufflePool[i], shufflePool[j]] = [shufflePool[j], shufflePool[i]];
-        }
-        
-        currentPool = shufflePool.slice(0, Math.min(shufflePool.length, 50));
-        currentIndex = 0;
-        score = 0;
-        document.getElementById('score').textContent = `Верно: 0`;
-        renderQuestion();
-    }
+            // 1. Создаем копию отфильтрованных данных
+            let pool = [...filteredData];
+
+            // 2. Тщательно перемешиваем ВЕСЬ список
+            shuffleArray(pool);
+            
+            // 3. Теперь берем лимит из уже перемешанного хаоса
+            currentPool = pool.slice(0, Math.min(pool.length, quizLimit));
+            
+            // Дальнейший код без изменений...
+            document.getElementById('settings-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            
+            currentIndex = 0;
+            score = 0;
+            document.getElementById('score').textContent = `Верно: 0`;
+            renderQuestion();
+      }
 
         function renderQuestion() {
             const item = currentPool[currentIndex];
@@ -164,7 +274,9 @@
             qBox.className = isRuToHe ? "text-2xl font-bold text-gray-700" : "text-5xl font-bold hebrew text-blue-900";
 
             const correct = isRuToHe ? item.he : item.ru;
-            let options = rawData
+            
+            // Варианты ответов берем из ВСЕХ данных для разнообразия
+            let options = filteredData
                 .filter(x => x.ru !== item.ru)
                 .sort(() => Math.random() - 0.5)
                 .slice(0, 3)
@@ -184,7 +296,7 @@
 
                 btn.onclick = () => {
                     if (!document.getElementById('next-btn').classList.contains('hidden')) return;
-                    playHebrew(item.tts);
+                    playHebrew(item.tts || item.he);
 
                     if (opt === correct) {
                         btn.classList.add('border-green-500', 'bg-green-50', 'text-green-700');
@@ -228,8 +340,10 @@
             }
         }
 
-        document.getElementById('repeat-audio').onclick = () => playHebrew(currentItem.tts);
+        // Кнопка повтора звука
+        document.getElementById('repeat-audio').onclick = () => playHebrew(currentItem.tts || currentItem.he);
 
+        // Кнопка "Дальше"
         document.getElementById('next-btn').onclick = () => {
             currentIndex++;
             if (currentIndex < currentPool.length) {
@@ -238,7 +352,27 @@
                 showResults();
             }
         };
+
+        // ИСПРАВЛЕНИЕ: Функция для полной очистки и возврата к загрузке
+        function resetToUpload() {
+            // Сбрасываем все данные
+            rawData = [];
+            filteredData = [];
+            currentPool = [];
+            
+            // Очищаем значение инпута (чтобы сработал change на том же файле)
+            const fileInput = document.getElementById('file-input');
+            fileInput.value = "";
+            
+            // Имитируем клик по скрытому инпуту
+            fileInput.click(); 
+            
+            // Возвращаем интерфейс в начальное состояние
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('settings-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('upload-screen').classList.remove('hidden');
+        }
     </script>
 </body>
 </html>
-
