@@ -152,7 +152,7 @@
                 })
                 .then(data => handleDataProcessing(data))
                 .catch(() => {
-                    btnLabel.textContent = 'Начать (verbs.json)';
+                    btnLabel.textContent = 'Начать';
                     errorMsg.classList.remove('hidden');
                 });
         }
@@ -324,7 +324,7 @@
             window.speechSynthesis.cancel();
             const msg = new SpeechSynthesisUtterance(text);
             msg.lang = 'he-IL';
-            msg.rate = 0.9;
+            msg.rate = 1;
             window.speechSynthesis.speak(msg);
         }
 
