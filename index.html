@@ -64,7 +64,13 @@
                 <div id="filters-container" class="max-h-72 overflow-y-auto space-y-5 pr-2">
                     <!-- Заполняется функцией generateFilters -->
                 </div>
-
+                <div class="flex items-center gap-3 p-4 bg-blue-50 rounded-2xl border-2 border-blue-100 mb-6">
+                    <input type="checkbox" id="dictation-mode" class="w-5 h-5 rounded border-blue-300 text-blue-600 focus:ring-blue-500" 
+                           onchange="isDictationMode = this.checked">
+                    <label for="dictation-mode" class="text-sm font-bold text-blue-800 cursor-pointer">
+                        Режим "Диктант" (авто-озвучка)
+                    </label>
+                </div>
                 <button onclick="startQuiz()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
                     Приступить к тесту
                 </button>
@@ -128,6 +134,7 @@
         let score = 0;
         let quizLimit = 50;
         let currentItem = null;
+        let isDictationMode = false;
         /*const filterConfig = [];*/
 
         /* Ваша конфигурация фильтров */
@@ -316,6 +323,12 @@
                 };
                 grid.appendChild(b);
             });
+            if (isDictationMode) {
+                    // Небольшая задержка, чтобы успел прогрузиться интерфейс
+                    setTimeout(() => {
+                        playHebrew(currentItem.tts || currentItem.he);
+                    }, 300);
+                }
         }
 
         // Озвучка (Проверено: ивритский голос)
