@@ -458,8 +458,7 @@
 
                 // Дистракторы (неправильные варианты)
                 let distractors = rawData
-                    .filter((i) => i.ru !== currentItem.ru)
-                    .slice(0, 15);
+                    .filter((i) => i.ru !== currentItem.ru);
                 shuffle(distractors);
                 distractors = distractors
                     .slice(0, 3)
